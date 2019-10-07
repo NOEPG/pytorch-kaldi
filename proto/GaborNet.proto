@@ -1,0 +1,13 @@
+[proto]
+gabor_N_filt=int_list(1,inf)
+gabor_len_filt=int_list(1,inf)
+gabor_max_pool_len=int_list(1,inf)
+gabor_sample_rate=int
+gabor_min_low_hz=int
+gabor_min_band_hz=int
+gabor_use_laynorm_inp=bool
+gabor_use_batchnorm_inp=bool
+gabor_use_laynorm=bool_list
+gabor_use_batchnorm=bool_list
+gabor_act=list_str
+gabor_drop=str_list

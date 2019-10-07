@@ -1806,6 +1806,242 @@ class SincConv_fast(nn.Module):
                          bias=None, groups=1)
 
 
+class GaborNet(nn.Module):
+
+    def __init__(self,options,inp_dim):
+        super(GaborNet,self).__init__()
+
+        # Reading parameters
+        self.input_dim=inp_dim
+        self.gabor_N_filt=list(map(int, options['gabor_N_filt'].split(',')))
+
+        self.gabor_len_filt=list(map(int, options['gabor_len_filt'].split(',')))
+        self.gabor_max_pool_len=list(map(int, options['gabor_max_pool_len'].split(',')))
+
+        self.gabor_act=options['gabor_act'].split(',')
+        self.gabor_drop=list(map(float, options['gabor_drop'].split(',')))
+
+        self.gabor_use_laynorm=list(map(strtobool, options['gabor_use_laynorm'].split(',')))
+        self.gabor_use_batchnorm=list(map(strtobool, options['gabor_use_batchnorm'].split(',')))
+        self.gabor_use_laynorm_inp=strtobool(options['gabor_use_laynorm_inp'])
+        self.gabor_use_batchnorm_inp=strtobool(options['gabor_use_batchnorm_inp'])
+
+        self.N_gabor_lay=len(self.gabor_N_filt)
+
+        self.gabor_sample_rate=int(options['gabor_sample_rate'])
+        self.gabor_min_low_hz=int(options['gabor_min_low_hz'])
+        self.gabor_min_band_hz=int(options['gabor_min_band_hz'])
+
+    
+        self.conv  = nn.ModuleList([])
+        self.bn  = nn.ModuleList([])
+        self.ln  = nn.ModuleList([])
+        self.act = nn.ModuleList([])
+        self.drop = nn.ModuleList([])
+
+
+        if self.gabor_use_laynorm_inp:
+            self.ln0=LayerNorm(self.input_dim)
+
+        if self.gabor_use_batchnorm_inp:
+            self.bn0=nn.BatchNorm1d([self.input_dim],momentum=0.05)
+
+        current_input=self.input_dim
+
+        for i in range(self.N_gabor_lay):
+
+            N_filt=int(self.gabor_N_filt[i])
+            len_filt=int(self.gabor_len_filt[i])
+
+            # dropout
+            self.drop.append(nn.Dropout(p=self.gabor_drop[i]))
+
+            # activation
+            self.act.append(act_fun(self.gabor_act[i]))
+
+            # layer norm initialization
+            if i ==0:
+                self.ln.append(LayerNorm([N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])]))
+            else:
+                self.ln.append(LayerNorm([N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])]))
+
+            self.bn.append(nn.BatchNorm1d(N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]),momentum=0.05))
+
+
+
+            if i==0:
+                self.conv.append(GaborConv(1, N_filt, len_filt,sample_rate=self.gabor_sample_rate, min_low_hz=self.gabor_min_low_hz, min_band_hz=self.gabor_min_band_hz))
+
+            else:
+                self.conv.append(nn.Conv1d(self.gabor_N_filt[i-1], self.gabor_N_filt[i], self.gabor_len_filt[i]))
+
+            current_input=int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])
+
+        self.out_dim=current_input*N_filt
+
+
+
+    def forward(self, x):
+
+        batch=x.shape[0]
+        seq_len=x.shape[1]
+
+        if bool(self.gabor_use_laynorm_inp):
+            x=self.ln0(x)
+
+        if bool(self.gabor_use_batchnorm_inp):
+            x=self.bn0(x)
+
+        x=x.view(batch,1,seq_len)
+
+        for i in range(self.N_gabor_lay):
+
+            if self.gabor_use_laynorm[i]:
+                x = self.drop[i](self.act[i](self.ln[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i]))))
+
+            if self.gabor_use_batchnorm[i]:
+                x = self.drop[i](self.act[i](self.bn[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i]))))
+
+            if self.gabor_use_batchnorm[i]==False and self.gabor_use_laynorm[i]==False:
+                x = self.drop[i](self.act[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i])))
+
+
+        x = x.view(batch,-1)
+
+        return x
+
+class GaborConv(nn.Module):
+    """Gabor-based convolution
+    Parameters
+    --------
+    in_channels : `int`
+        Number of input channels. Must be 1.
+    out_channels : `int`
+        Number of filters.
+    kernel_size : `int`
+        Filter length.
+    sample_rate : `int`, optional
+        Sample rate. Defaults to 16000.
+    """
+
+    @staticmethod
+    def to_mel(hz):
+        return 2595 * np.log10(1 + hz / 700)
+        
+    @staticmethod
+    def to_hz(mel):
+        return 700 * (10 ** (mel / 2595) - 1)
+
+    def __init__(self, in_channels, out_channels, kernel_size,
+                                stride=1, padding=0, dilation=1, bias=False, groups=1,
+                                sample_rate=16000, min_low_hz=50, min_band_hz=50):
+
+        super(GaborConv,self).__init__()
+
+        if in_channels != 1:
+
+             msg = "Gabor only support one input channel (here, in_channels = {%i})" % (in_channels)
+             raise ValueError(msg)
+
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+
+        # Forcing the filters to be odd (i.e, perfectly symmetrics)
+        if kernel_size%2==0:
+            self.kernel_size=self.kernel_size+1
+
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+
+        if bias:
+            raise ValueError('GaborConv does not support bias.')
+        if groups > 1:
+            raise ValueError('GaborConv does not support groups.')
+
+        self.sample_rate = sample_rate
+        self.min_low_hz = min_low_hz
+        self.min_band_hz = min_band_hz
+
+        # initialize filterbanks such that they are equally spaced in Mel scale
+        low_hz = 30
+        high_hz = self.sample_rate / 2 - (self.min_low_hz + self.min_band_hz)
+
+        mel = np.linspace(self.to_mel(low_hz),self.to_mel(high_hz),self.out_channels + 1)
+        hz = self.to_hz(mel) / self.sample_rate
+
+
+        # filter lower frequency (out_channels, 1)
+        self.low_hz_ = nn.Parameter(torch.Tensor(hz[:-1]).view(-1, 1))
+
+        # filter frequency band (out_channels, 1)
+        self.band_hz_ = nn.Parameter(torch.Tensor(np.diff(hz)).view(-1, 1))
+
+        # Hamming window                                        IS IT REALLY NECESSARY ? GABOR IMPULSE RESPONSE IS ALREADY MULTIPLIED BY A GAUSSIAN WINDOW
+        n_lin=torch.linspace(0, self.kernel_size, steps=self.kernel_size)
+        self.window_=0.54-0.46*torch.cos(2*math.pi*n_lin/self.kernel_size);
+
+
+        # (kernel_size, 1)
+        n = (self.kernel_size - 1) / 2
+        self.n_ = torch.arange(-n, n+1).view(1, -1) / self.sample_rate
+
+
+    def gaussian_window(self, x, sigma):
+
+        w = (1/(math.sqrt(2*math.pi)*sigma) * torch.exp(-x**2/(2*sigma**2)))
+
+        return w
+
+    def forward(self, waveforms):
+        """
+        Parameters
+         ----------
+        waveforms : `torch.Tensor` (batch_size, 1, n_samples)
+            Batch of waveforms.
+        Returns
+        ------
+        features : `torch.Tensor` (batch_size, out_channels, n_samples_out)
+            Batch of gabor filters activations.
+        """
+
+        self.n_ = self.n_.to(waveforms.device)
+
+        self.window_ = self.window_.to(waveforms.device)
+
+        low = self.min_low_hz / self.sample_rate + torch.abs(self.low_hz_)
+        high = low + self.min_band_hz /self.sample_rate + torch.abs(self.band_hz_)
+
+        sigma = math.sqrt(3*math.log(10)/10)/(math.pi*(high-low))
+
+        f0 = (high+low)/2
+        f_times_t = torch.matmul(f0, self.n_)
+
+        ge = torch.cos(2*math.pi*f_times_t*self.sample_rate)
+        ge = torch.mul(self.gaussian_window(self.n_, sigma), ge)
+
+        go = torch.sin(2*math.pi*f_times_t*self.sample_rate)
+        go = torch.mul(self.gaussian_window(self.n_, sigma), go)
+
+        max_, _ = torch.max(ge, dim=1, keepdim=True)
+        ge = ge / max_
+
+        max_, _ = torch.max(go, dim=1, keepdim=True)
+        go = go / max_
+
+        filters_ge = (ge * self.window_).view(self.out_channels, 1, self.kernel_size)   #IS THE WINDOWING REALLY NECESSARY ? GABOR IMPULSE RESPONSE IS ALREADY MULTIPLIED BY A GAUSSIAN WINDOW
+        filters_go = (go * self.window_).view(self.out_channels, 1, self.kernel_size)
+
+        self.filters = torch.cat((filters_ge, filters_go),0)
+
+        conv_out = F.conv1d(waveforms, self.filters, stride=self.stride, padding=self.padding, dilation=self.dilation, bias=None, groups=1)
+
+        return torch.sqrt(conv_out[:,0:int(conv_out.shape[1]/2)]**2 + conv_out[:,int(conv_out.shape[1]/2):]**2)
+
+
+
+
+
 def flip(x, dim):
     xsize = x.size()
     dim = x.dim() + dim if dim < 0 else dim
@@ -1868,7 +2104,7 @@ class PASE(nn.Module):
         # To use PASE within PyTorch-Kaldi, please clone the current PASE repository: https://github.com/santi-pdp/pase
         # Note that you have to clone the dev branch.
         # Take a look into the requirements (requirements.txt) and install in your environment what is missing. An important requirement is QRNN (https://github.com/salesforce/pytorch-qrnn).
-        # Before starting working with PASE, it could make sense to a quick test  with QRNN independently (see “usage” section in the QRNN repository).
+        # Before starting working with PASE, it could make sense to a quick test  with QRNN independently (see "usage" section in the QRNN repository).
         # Remember to install pase. This way it can be used outside the pase folder directory.  To do it, go into the pase folder and type:
         # "python setup.py install"
 
