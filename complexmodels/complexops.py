@@ -311,6 +311,7 @@ def unitary_init(in_features, out_features, rng, criterion='glorot'):
 
 
 def complex_init(in_features, out_features, rng, kernel_size=None, criterion='glorot', transpose=False):
+
     if kernel_size is not None:
         receptive_field = np.prod(kernel_size)
         fan_out = out_features * receptive_field
@@ -417,7 +418,7 @@ def affect_init(real_weight, imag_weight, init_func, rng, init_criterion):
         raise Exception('affect_init accepts only matrices. Found dimension = '
                         + str(real_weight.dim()))
 
-    a, b = init_func(real_weight.size(0), real_weight.size(1), rng, init_criterion)
+    a, b = init_func(real_weight.size(0), real_weight.size(1), rng, None, init_criterion)
     a, b = torch.from_numpy(a), torch.from_numpy(b)
     real_weight.data = a.type_as(real_weight.data)
     imag_weight.data = b.type_as(imag_weight.data)

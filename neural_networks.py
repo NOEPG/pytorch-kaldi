@@ -14,8 +14,8 @@ from distutils.util         import strtobool
 import math
 import json
 from   complexmodels        import ComplexConv, ComplexLinear, get_real, get_imag
-from   complexnorm          import ComplexBN as CBN
-from   complexnorm          import ComplexLN as CLN
+from   complexmodels        import ComplexBN as CBN
+from   complexmodels        import ComplexLN as CLN
 
 # uncomment below if you want to use SRU
 # and you need to install SRU: pip install sru[cuda].
@@ -64,7 +64,7 @@ class ComplexMLP(nn.Module):
     def __init__(self, options,inp_dim):
         super(ComplexMLP, self).__init__()
 
-        self.input_dim=inp_dim
+        self.input_dim=inp_dim // 2
         self.dnn_lay=list(map(int, options['dnn_lay'].split(',')))
         self.dnn_drop=list(map(float, options['dnn_drop'].split(',')))
         self.dnn_use_batchnorm=list(map(strtobool, options['dnn_use_batchnorm'].split(',')))
@@ -115,11 +115,11 @@ class ComplexMLP(nn.Module):
 
 
              # Linear operations
-             self.wx.append(ComplexLinear(current_input, self.dnn_lay[i],bias=add_bias))
+             self.wx.append(ComplexLinear(current_input, self.dnn_lay[i]))
 
              current_input=self.dnn_lay[i]
 
-        self.out_dim=current_input
+        self.out_dim=current_input * 2
 
     def forward(self, x):
 

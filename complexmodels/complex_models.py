@@ -8,8 +8,7 @@ from   torch.nn           import Module
 from   .                  import realops
 from   .complexops        import *
 import sys
-sys.path.append('..')
-from   complexnorm        import complexbn
+from   .bn                import complexbn
 
 
 class ComplexLinear(Module):
