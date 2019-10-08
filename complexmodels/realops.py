@@ -70,7 +70,6 @@ def independent_filters_init(in_channels, out_channels, kernel_size, rng, criter
 
     return weight.T if kernel_size is None else weight
 
-
 def real_init(in_channels, out_channels, rng, kernel_size=None, criterion='glorot'):
     if kernel_size is not None:
         receptive_field = np.prod(kernel_size)

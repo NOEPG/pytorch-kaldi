@@ -113,8 +113,8 @@ class ComplexConv(Module):
         Out: torch.Size([16, 2, 4])
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride,
-                 dilation, padding, bias=True, init_criterion='glorot',
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+                 dilation=1, padding=0, bias=True, init_criterion='glorot',
                  weight_init='complex', seed=None, operation='convolution2d',
                  transpose=False, normalize_weight=False, eps=1e-4, **kwargs):
 

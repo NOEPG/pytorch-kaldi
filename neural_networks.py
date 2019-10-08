@@ -64,7 +64,7 @@ class ComplexMLP(nn.Module):
     def __init__(self, options,inp_dim):
         super(ComplexMLP, self).__init__()
 
-        self.input_dim=inp_dim // 2
+        self.input_dim=inp_dim
         self.dnn_lay=list(map(int, options['dnn_lay'].split(',')))
         self.dnn_drop=list(map(float, options['dnn_drop'].split(',')))
         self.dnn_use_batchnorm=list(map(strtobool, options['dnn_use_batchnorm'].split(',')))
@@ -1832,19 +1832,17 @@ class GaborNet(nn.Module):
         self.gabor_min_low_hz=int(options['gabor_min_low_hz'])
         self.gabor_min_band_hz=int(options['gabor_min_band_hz'])
 
-    
         self.conv  = nn.ModuleList([])
         self.bn  = nn.ModuleList([])
         self.ln  = nn.ModuleList([])
         self.act = nn.ModuleList([])
         self.drop = nn.ModuleList([])
 
-
         if self.gabor_use_laynorm_inp:
-            self.ln0=LayerNorm(self.input_dim)
+            self.ln0=CLN(self.input_dim // 2)
 
         if self.gabor_use_batchnorm_inp:
-            self.bn0=nn.BatchNorm1d([self.input_dim],momentum=0.05)
+            self.bn0=CBN([self.input_dim // 2],momentum=0.05)
 
         current_input=self.input_dim
 
@@ -1860,25 +1858,20 @@ class GaborNet(nn.Module):
             self.act.append(act_fun(self.gabor_act[i]))
 
             # layer norm initialization
-            if i ==0:
-                self.ln.append(LayerNorm([N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])]))
-            else:
-                self.ln.append(LayerNorm([N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])]))
+            #print(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]))
+            self.ln.append(CLN(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])*2, dim=-1))
 
-            self.bn.append(nn.BatchNorm1d(N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]),momentum=0.05))
-
-
+            self.bn.append(CBN(N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]),momentum=0.05))
 
             if i==0:
                 self.conv.append(GaborConv(1, N_filt, len_filt,sample_rate=self.gabor_sample_rate, min_low_hz=self.gabor_min_low_hz, min_band_hz=self.gabor_min_band_hz))
 
             else:
-                self.conv.append(nn.Conv1d(self.gabor_N_filt[i-1], self.gabor_N_filt[i], self.gabor_len_filt[i]))
+                self.conv.append(ComplexConv(self.gabor_N_filt[i-1], self.gabor_N_filt[i], self.gabor_len_filt[i], operation='convolution1d'))
 
             current_input=int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])
 
         self.out_dim=current_input*N_filt
-
 
 
     def forward(self, x):
@@ -1927,7 +1920,7 @@ class GaborConv(nn.Module):
     @staticmethod
     def to_mel(hz):
         return 2595 * np.log10(1 + hz / 700)
-        
+
     @staticmethod
     def to_hz(mel):
         return 700 * (10 ** (mel / 2595) - 1)
@@ -2036,7 +2029,8 @@ class GaborConv(nn.Module):
 
         conv_out = F.conv1d(waveforms, self.filters, stride=self.stride, padding=self.padding, dilation=self.dilation, bias=None, groups=1)
 
-        return torch.sqrt(conv_out[:,0:int(conv_out.shape[1]/2)]**2 + conv_out[:,int(conv_out.shape[1]/2):]**2)
+        #return torch.sqrt(conv_out[:,0:int(conv_out.shape[1]/2)]**2 + conv_out[:,int(conv_out.shape[1]/2):]**2)
+        return conv_out
 
 
 
