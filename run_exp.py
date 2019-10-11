@@ -37,7 +37,7 @@ def _run_forwarding_in_subprocesses(config):
 def _is_first_validation(ck, N_ck_tr, config):
     def _get_nr_of_valid_per_epoch_from_config(config):
         if not 'nr_of_valid_per_epoch' in config['exp']:
-            return 1
+            return 2
         return int(config['exp']['nr_of_valid_per_epoch'])
 
     val_chunks = get_chunks_after_which_to_validate(N_ck_tr, _get_nr_of_valid_per_epoch_from_config(config))
@@ -245,7 +245,8 @@ for ep in range(N_ep):
                         os.remove(model_files_past[pt_arch]) 
 
             if do_validation_after_chunk(ck, N_ck_tr, config):
-                if not _is_first_validation(ck, N_ck_tr, config):
+                #if not _is_first_validation(ck, N_ck_tr, config):
+                if ep > 0 and ck == N_ck_tr-1: 
                     valid_peformance_dict_prev = valid_peformance_dict
                 valid_peformance_dict = {}  
                 for valid_data in valid_data_lst:
@@ -267,7 +268,8 @@ for ep in range(N_ep):
                     valid_loss, valid_error, valid_time = compute_avg_performance(valid_info_lst)
                     valid_peformance_dict[valid_data] = [valid_loss,valid_error,valid_time]
                     val_time_tot += valid_time
-                if not _is_first_validation(ck, N_ck_tr, config):
+                #if not _is_first_validation(ck, N_ck_tr, config):
+                if ep > 0 and ck == N_ck_tr-1: 
                     err_valid_mean = np.mean(np.asarray(list(valid_peformance_dict.values()))[:,1])
                     err_valid_mean_prev = np.mean(np.asarray(list(valid_peformance_dict_prev.values()))[:,1])
                     for lr_arch in lr.keys():

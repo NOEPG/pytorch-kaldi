@@ -5,7 +5,7 @@ cfg_proto_chunk = proto/global_chunk.proto
 [exp]
 cmd =
 run_nn_script = run_nn.py
-out_folder = exp/SincNet2
+out_folder = exp/SincNet33333
 pretrain_file = none
 seed = 1234
 use_cuda = True
@@ -104,7 +104,7 @@ arch_class = SincNet
 arch_pretrain_file = none
 arch_freeze = False
 arch_seq_model = False
-sinc_n_filt = 256,120,120,120
+sinc_n_filt = 128,120,120,120
 sinc_len_filt = 129,5,5,3
 sinc_max_pool_len = 3,3,3,2
 sinc_use_laynorm_inp = True

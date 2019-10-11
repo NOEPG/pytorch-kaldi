@@ -1,0 +1,13 @@
+[proto]
+gaborreal_N_filt=int_list(1,inf)
+gaborreal_len_filt=int_list(1,inf)
+gaborreal_max_pool_len=int_list(1,inf)
+gaborreal_sample_rate=int
+gaborreal_min_low_hz=int
+gaborreal_min_band_hz=int
+gaborreal_use_laynorm_inp=bool
+gaborreal_use_batchnorm_inp=bool
+gaborreal_use_laynorm=bool_list
+gaborreal_use_batchnorm=bool_list
+gaborreal_act=list_str
+gaborreal_drop=str_list

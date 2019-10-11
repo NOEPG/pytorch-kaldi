@@ -1,0 +1,13 @@
+[proto]
+gaborcomb_N_filt=int_list(1,inf)
+gaborcomb_len_filt=int_list(1,inf)
+gaborcomb_max_pool_len=int_list(1,inf)
+gaborcomb_sample_rate=int
+gaborcomb_min_low_hz=int
+gaborcomb_min_band_hz=int
+gaborcomb_use_laynorm_inp=bool
+gaborcomb_use_batchnorm_inp=bool
+gaborcomb_use_laynorm=bool_list
+gaborcomb_use_batchnorm=bool_list
+gaborcomb_act=list_str
+gaborcomb_drop=str_list

@@ -467,6 +467,7 @@ class ComplexLayerNormalization(Module):
             self.beta.data.zero_()
 
     def forward(self, input):
+        print("go_in")
         
         input_shape                   = input.size()
         ndim                          = input.dim()
