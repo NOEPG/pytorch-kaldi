@@ -1,4 +1,4 @@
-This is a fork from [mravanelli/pytorch-kaldi](https://github.com/mravanelli/pytorch-kaldi) where I have added the models proposed in the work *"Complex Gabor Convolutional Neural Network on raw speech", [arXiv](https://arxiv.org/abs/2002.04569)*.
+This is a fork from [mravanelli/pytorch-kaldi](https://github.com/mravanelli/pytorch-kaldi) where I added the models proposed in the work *"Complex Gabor Convolutional Neural Network on raw speech", [arXiv](https://arxiv.org/abs/2002.04569)*.
 
 In order to try it :
 1. Follows the steps described in the “TIMIT tutorial”.
