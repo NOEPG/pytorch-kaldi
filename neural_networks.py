@@ -13,7 +13,7 @@ import numpy                as np
 from distutils.util         import strtobool
 import math
 import json
-from   complexmodels        import ComplexConv, ComplexLinear, get_real, get_imag
+from   complexmodels        import ComplexConv, ComplexLinear, get_real, get_imag, complex_max_pool1d
 from   complexmodels        import ComplexBN as CBN
 from   complexmodels        import ComplexLN as CLN
 
@@ -1450,6 +1450,7 @@ class SincNet(nn.Module):
 
        self.sinc_sample_rate=int(options['sinc_sample_rate'])
        self.sinc_min_low_hz=int(options['sinc_min_low_hz'])
+       #self.sinc_max_high_hz=int(options['sinc_max_high_hz'])
        self.sinc_min_band_hz=int(options['sinc_min_band_hz'])
 
 
@@ -1590,6 +1591,7 @@ class SincConv(nn.Module):
 
         self.sample_rate = sample_rate
         self.min_low_hz = min_low_hz
+        #self.max_high_hz = max_high_hz
         self.min_band_hz = min_band_hz
 
         # initialize filterbanks such that they are equally spaced in Mel scale
@@ -1647,6 +1649,7 @@ class SincConv(nn.Module):
 
         low = self.min_low_hz / self.sample_rate + torch.abs(self.low_hz_)
         high = low + self.min_band_hz /self.sample_rate + torch.abs(self.band_hz_)
+        #high[high > self.max_high_hz] = self.max_high_hz
 
         f_times_t = torch.matmul(low, self.n_)
 
@@ -1830,6 +1833,7 @@ class GaborNet(nn.Module):
 
         self.gabor_sample_rate=int(options['gabor_sample_rate'])
         self.gabor_min_low_hz=int(options['gabor_min_low_hz'])
+        #self.gabor_max_high_hz=int(options['gabor_max_high_hz'])
         self.gabor_min_band_hz=int(options['gabor_min_band_hz'])
 
         self.conv  = nn.ModuleList([])
@@ -1859,9 +1863,7 @@ class GaborNet(nn.Module):
             self.act.append(act_fun(self.gabor_act[i]))
 
             # layer norm initialization
-            #print(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]))
-            #self.ln.append(CLN(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])*2, dim=-1))
-            self.ln.append(CLN(current_input // 2, dim=1))
+            self.ln.append(CLN(N_filt, dim=1))
             self.bn.append(CBN(N_filt,int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]),momentum=0.05))
 
             if i==0:
@@ -1891,13 +1893,13 @@ class GaborNet(nn.Module):
         for i in range(self.N_gabor_lay):
 
             if self.gabor_use_laynorm[i]:
-                x = self.drop[i](self.act[i](self.ln[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i]))))
+                x = self.drop[i]((self.ln[i]((F.max_pool1d(self.act[i](self.conv[i](x)), self.gabor_max_pool_len[i])))))
 
             if self.gabor_use_batchnorm[i]:
-                x = self.drop[i](self.act[i](self.bn[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i]))))
+                x = self.drop[i]((self.bn[i]((F.max_pool1d(self.act[i](self.conv[i](x)), self.gabor_max_pool_len[i])))))
 
             if self.gabor_use_batchnorm[i]==False and self.gabor_use_laynorm[i]==False:
-                x = self.drop[i](self.act[i](F.max_pool1d(self.conv[i](x), self.gabor_max_pool_len[i])))
+                x = self.drop[i]((F.max_pool1d(self.act[i](self.conv[i](x)), self.gabor_max_pool_len[i])))
 
 
         x = x.view(batch,-1)
@@ -2034,255 +2036,7 @@ class GaborConv(nn.Module):
 
         conv_out = F.conv1d(waveforms, self.filters, stride=self.stride, padding=self.padding, dilation=self.dilation, bias=None, groups=1)
 
-        #return torch.sqrt(conv_out[:,0:int(conv_out.shape[1]/2)]**2 + conv_out[:,int(conv_out.shape[1]/2):]**2)
         return conv_out
-
-
-class GaborCombNet(nn.Module):
-
-    def __init__(self,options,inp_dim):
-        super(GaborCombNet,self).__init__()
-
-        # Reading parameters
-        self.input_dim=inp_dim
-        self.gaborcomb_N_filt=list(map(int, options['gaborcomb_N_filt'].split(',')))
-
-        self.gaborcomb_len_filt=list(map(int, options['gaborcomb_len_filt'].split(',')))
-        self.gaborcomb_max_pool_len=list(map(int, options['gaborcomb_max_pool_len'].split(',')))
-
-        self.gaborcomb_act=options['gaborcomb_act'].split(',')
-        self.gaborcomb_drop=list(map(float, options['gaborcomb_drop'].split(',')))
-
-        self.gaborcomb_use_laynorm=list(map(strtobool, options['gaborcomb_use_laynorm'].split(',')))
-        self.gaborcomb_use_batchnorm=list(map(strtobool, options['gaborcomb_use_batchnorm'].split(',')))
-        self.gaborcomb_use_laynorm_inp=strtobool(options['gaborcomb_use_laynorm_inp'])
-        self.gaborcomb_use_batchnorm_inp=strtobool(options['gaborcomb_use_batchnorm_inp'])
-
-        self.N_gaborcomb_lay=len(self.gaborcomb_N_filt)
-
-        self.gaborcomb_sample_rate=int(options['gaborcomb_sample_rate'])
-        self.gaborcomb_min_low_hz=int(options['gaborcomb_min_low_hz'])
-        self.gaborcomb_min_band_hz=int(options['gaborcomb_min_band_hz'])
-
-        self.conv  = nn.ModuleList([])
-        self.bn  = nn.ModuleList([])
-        self.ln  = nn.ModuleList([])
-        self.act = nn.ModuleList([])
-        self.drop = nn.ModuleList([])
-
-        if self.gaborcomb_use_laynorm_inp:
-            self.ln0=LayerNorm(self.input_dim)
-
-        if self.gaborcomb_use_batchnorm_inp:
-            self.bn0=nn.BatchNorm1d([self.input_dim],momentum=0.05)
-
-
-        current_input=self.input_dim
-
-        for i in range(self.N_gaborcomb_lay):
-
-            N_filt=int(self.gaborcomb_N_filt[i])
-            len_filt=int(self.gaborcomb_len_filt[i])
-
-            # dropout
-            self.drop.append(nn.Dropout(p=self.gaborcomb_drop[i]))
-
-            # activation
-            self.act.append(act_fun(self.gaborcomb_act[i]))
-
-            # layer norm initialization
-            #print(int((current_input-self.gaborcomb_len_filt[i]+1)/self.gaborcomb_max_pool_len[i]))
-            #self.ln.append(CLN(int((current_input-self.gaborcomb_len_filt[i]+1)/self.gaborcomb_max_pool_len[i])*2, dim=-1))
-            self.ln.append(CLN(current_input // 2, dim=1))
-            self.bn.append(CBN(N_filt,int((current_input-self.gaborcomb_len_filt[i]+1)/self.gaborcomb_max_pool_len[i]),momentum=0.05))
-
-            if i==0:
-                self.conv.append(GaborConvComb(1, N_filt, len_filt,sample_rate=self.gaborcomb_sample_rate, min_low_hz=self.gaborcomb_min_low_hz, min_band_hz=self.gaborcomb_min_band_hz))
-
-            else:
-                self.conv.append(ComplexConv(self.gaborcomb_N_filt[i-1], self.gaborcomb_N_filt[i], self.gaborcomb_len_filt[i], operation='convolution1d'))
-
-            current_input=int((current_input-self.gaborcomb_len_filt[i]+1)/self.gaborcomb_max_pool_len[i])
-
-        self.out_dim=current_input*N_filt
-
-
-    def forward(self, x):
-
-        batch=x.shape[0]
-        seq_len=x.shape[1]
-
-        if bool(self.gaborcomb_use_laynorm_inp):
-            x=self.ln0(x)
-
-        if bool(self.gaborcomb_use_batchnorm_inp):
-            x=self.bn0(x)
-
-        x=x.view(batch,1,seq_len)
-
-        for i in range(self.N_gaborcomb_lay):
-
-            if self.gaborcomb_use_laynorm[i]:
-                x = self.drop[i](self.act[i](self.ln[i](F.max_pool1d(self.conv[i](x), self.gaborcomb_max_pool_len[i]))))
-
-            if self.gaborcomb_use_batchnorm[i]:
-                x = self.drop[i](self.act[i](self.bn[i](F.max_pool1d(self.conv[i](x), self.gaborcomb_max_pool_len[i]))))
-
-            if self.gaborcomb_use_batchnorm[i]==False and self.gaborcomb_use_laynorm[i]==False:
-                x = self.drop[i](self.act[i](F.max_pool1d(self.conv[i](x), self.gaborcomb_max_pool_len[i])))
-
-
-        x = x.view(batch,-1)
-
-        return x
-
-
-class GaborConvComb(nn.Module):
-    """Gabor-based convolution
-    Parameters
-    --------
-    in_channels : `int`
-        Number of input channels. Must be 1.
-    out_channels : `int`
-        Number of filters.
-    kernel_size : `int`
-        Filter length.
-    sample_rate : `int`, optional
-        Sample rate. Defaults to 16000.
-    """
-
-    @staticmethod
-    def to_mel(hz):
-        return 2595 * np.log10(1 + hz / 700)
-
-    @staticmethod
-    def to_hz(mel):
-        return 700 * (10 ** (mel / 2595) - 1)
-
-    def __init__(self, in_channels, out_channels, kernel_size,
-                                stride=1, padding=0, dilation=1, bias=False, groups=1,
-                                sample_rate=16000, min_low_hz=50, min_band_hz=50):
-
-        super(GaborConvComb,self).__init__()
-
-        if in_channels != 1:
-
-             msg = "Gabor only support one input channel (here, in_channels = {%i})" % (in_channels)
-             raise ValueError(msg)
-
-        self.out_channels = out_channels
-        self.kernel_size = kernel_size
-
-        # Forcing the filters to be odd (i.e, perfectly symmetrics)
-        if kernel_size%2==0:
-            self.kernel_size=self.kernel_size+1
-
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
-
-        if bias:
-            raise ValueError('GaborConv does not support bias.')
-        if groups > 1:
-            raise ValueError('GaborConv does not support groups.')
-
-        self.sample_rate = sample_rate
-        self.min_low_hz = min_low_hz
-        self.min_band_hz = min_band_hz
-
-        # initialize filterbanks such that they are equally spaced in Mel scale
-        low_hz = 30
-        high_hz = self.sample_rate / 2 - (self.min_low_hz + self.min_band_hz)
-
-        mel = np.linspace(self.to_mel(low_hz),self.to_mel(high_hz),self.out_channels + 1)
-        hz = self.to_hz(mel) / self.sample_rate
-
-
-        # filter lower frequency (out_channels, 1)
-        #self.low_hz_ = nn.Parameter(torch.Tensor(hz[:-1]).view(-1, 1))
-        self.low_hz_ = nn.Parameter(torch.Tensor(np.random.random(self.out_channels)).view(-1, 1))
-
-
-        # filter frequency band (out_channels, 1)
-        #self.band_hz_ = nn.Parameter(torch.Tensor(np.diff(hz)).view(-1, 1))
-        self.band_hz_ = nn.Parameter(torch.Tensor(np.random.random(self.out_channels)).view(-1, 1))
-
-        self.comb_params_ = nn.Parameter(torch.Tensor(np.random.random((self.out_channels,self.out_channels))))
-        # Hamming window                                        IS IT REALLY NECESSARY ? GABOR IMPULSE RESPONSE IS ALREADY MULTIPLIED BY A GAUSSIAN WINDOW
-        n_lin=torch.linspace(0, self.kernel_size, steps=self.kernel_size)
-        self.window_=0.54-0.46*torch.cos(2*math.pi*n_lin/self.kernel_size);
-
-
-        # (kernel_size, 1)
-        n = (self.kernel_size - 1) / 2
-        self.n_ = torch.arange(-n, n+1).view(1, -1) / self.sample_rate
-
-
-    def gaussian_window(self, x, sigma):
-
-        w = (1/(math.sqrt(2*math.pi)*sigma) * torch.exp(-x**2/(2*sigma**2)))
-
-        return w
-
-    def forward(self, waveforms):
-        """
-        Parameters
-         ----------
-        waveforms : `torch.Tensor` (batch_size, 1, n_samples)
-            Batch of waveforms.
-        Returns
-        ------
-        features : `torch.Tensor` (batch_size, out_channels, n_samples_out)
-            Batch of gabor filters activations.
-        """
-
-        self.n_ = self.n_.to(waveforms.device)
-
-        self.window_ = self.window_.to(waveforms.device)
-
-        low = self.min_low_hz / self.sample_rate + torch.abs(self.low_hz_)
-        high = low + self.min_band_hz /self.sample_rate + torch.abs(self.band_hz_)
-
-        sigma = math.sqrt(3*math.log(10)/10)/(math.pi*(high-low))
-
-        f0 = (high+low)/2
-        f_times_t = torch.matmul(f0, self.n_)
-
-        ge = torch.cos(2*math.pi*f_times_t*self.sample_rate)
-        ge = torch.mul(self.gaussian_window(self.n_, sigma), ge)
-
-        go = torch.sin(2*math.pi*f_times_t*self.sample_rate)
-        go = torch.mul(self.gaussian_window(self.n_, sigma), go)
-
-        max_, _ = torch.max(ge, dim=1, keepdim=True)
-        ge = ge / max_
-
-        max_, _ = torch.max(go, dim=1, keepdim=True)
-        go = go / max_
-
-        filters_ge = (ge * self.window_).view(self.out_channels, 1, self.kernel_size)   #IS THE WINDOWING REALLY NECESSARY ? GABOR IMPULSE RESPONSE IS ALREADY MULTIPLIED BY A GAUSSIAN WINDOW
-        filters_go = (go * self.window_).view(self.out_channels, 1, self.kernel_size)
-
-        #filters_ge = ge.view(self.out_channels, 1, self.kernel_size)
-        #filters_go = go.view(self.out_channels, 1, self.kernel_size)
-
-        self.filters = torch.cat((filters_ge, filters_go),0)
-
-        conv_out = F.conv1d(waveforms, self.filters, stride=self.stride, padding=self.padding, dilation=self.dilation, bias=None, groups=1)
-
-        M = self.comb_params_.reshape((1,self.out_channels,self.out_channels))
-        #M = torch.Tensor(np.eye(self.out_channels))
-        M = M.repeat(list(conv_out.shape)[0],1,1)
-
-        conv_out_real = conv_out[:,0:int(conv_out.shape[1]/2)]
-        conv_out_imag = conv_out[:,int(conv_out.shape[1]/2):]
-
-        comb_out_real = torch.bmm(M.cuda(),conv_out_real)
-        comb_out_imag = torch.bmm(M.cuda(),conv_out_imag)
-        comb_out = torch.cat((comb_out_real, comb_out_real),1)
-
-        #return torch.sqrt(conv_out[:,0:int(conv_out.shape[1]/2)]**2 + conv_out[:,int(conv_out.shape[1]/2):]**2)
-        return comb_out
 
 
 class GaborRealNet(nn.Module):
@@ -2338,25 +2092,14 @@ class GaborRealNet(nn.Module):
             self.act.append(act_fun(self.gaborreal_act[i]))
 
             # layer norm initialization
-            #print(int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i]))
-            #self.ln.append(CLN(int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i])*2, dim=-1))
+            self.ln.append(LayerNorm([N_filt,int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i])]))
+            self.bn.append(nn.BatchNorm1d(N_filt,int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i]),momentum=0.05))
 
             if i==0:
-                self.ln.append(CLN(current_input // 2, dim=1))
-                self.bn.append(CBN(N_filt,int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i]),momentum=0.05))
-            else:
-                self.ln.append(LayerNorm([N_filt,int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i])]))
-                self.bn.append(nn.BatchNorm1d(N_filt,int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i]),momentum=0.05))
-
-
-            if i==0:
-                self.conv.append(GaborConv(1, N_filt, len_filt,sample_rate=self.gaborreal_sample_rate, min_low_hz=self.gaborreal_min_low_hz, min_band_hz=self.gaborreal_min_band_hz))
-
-
-            elif i==1:
-                self.conv.append(nn.Conv1d(2*self.gaborreal_N_filt[i-1], self.gaborreal_N_filt[i], self.gaborreal_len_filt[i]))
+                self.conv.append(GaborRealConv(1, N_filt, len_filt,sample_rate=self.gaborreal_sample_rate, min_low_hz=self.gaborreal_min_low_hz, min_band_hz=self.gaborreal_min_band_hz))
             else:
                 self.conv.append(nn.Conv1d(self.gaborreal_N_filt[i-1], self.gaborreal_N_filt[i], self.gaborreal_len_filt[i]))
+
 
             current_input=int((current_input-self.gaborreal_len_filt[i]+1)/self.gaborreal_max_pool_len[i])
 
@@ -2379,13 +2122,13 @@ class GaborRealNet(nn.Module):
         for i in range(self.N_gaborreal_lay):
 
             if self.gaborreal_use_laynorm[i]:
-                x = self.drop[i](self.act[i](self.ln[i](F.max_pool1d(self.conv[i](x), self.gaborreal_max_pool_len[i]))))
+                x = self.drop[i]((self.ln[i](self.act[i](F.max_pool1d((self.conv[i](x)), self.gaborreal_max_pool_len[i])))))
 
             if self.gaborreal_use_batchnorm[i]:
-                x = self.drop[i](self.act[i](self.bn[i](F.max_pool1d(self.conv[i](x), self.gaborreal_max_pool_len[i]))))
+                x = self.drop[i]((self.bn[i](self.act[i](F.max_pool1d((self.conv[i](x)), self.gaborreal_max_pool_len[i])))))
 
             if self.gaborreal_use_batchnorm[i]==False and self.gaborreal_use_laynorm[i]==False:
-                x = self.drop[i](self.act[i](F.max_pool1d(self.conv[i](x), self.gaborreal_max_pool_len[i])))
+                x = self.drop[i](self.act[i](F.max_pool1d((self.conv[i](x)), self.gaborreal_max_pool_len[i])))
 
 
         x = x.view(batch,-1)
@@ -2393,99 +2136,120 @@ class GaborRealNet(nn.Module):
         return x
 
 
-#class ComplexCNNNet(nn.Module):
-
-#    def __init__(self,options,inp_dim):
-#        super(ComplexCNNNet,self).__init__()
-#
-#        # Reading parameters
-#        self.input_dim=inp_dim
-#        self.ccnn_N_filt=list(map(int, options['ccnn_N_filt'].split(',')))
-
-#        self.ccnn_len_filt=list(map(int, options['ccnn_len_filt'].split(',')))
-#        self.ccnn_max_pool_len=list(map(int, options['ccnn_max_pool_len'].split(',')))
-
-#        self.ccnn_act=options['ccnn_act'].split(',')
-#        self.ccnn_drop=list(map(float, options['ccnn_drop'].split(',')))
-
-#        self.ccnn_use_laynorm=list(map(strtobool, options['ccnn_use_laynorm'].split(',')))
-#        self.ccnn_use_batchnorm=list(map(strtobool, options['ccnn_use_batchnorm'].split(',')))
-#        self.ccnn_use_laynorm_inp=strtobool(options['ccnn_use_laynorm_inp'])
-#        self.ccnn_use_batchnorm_inp=strtobool(options['ccnn_use_batchnorm_inp'])
-
-#        self.ccnn_N_lay=len(self.ccnn_N_filt)
-
-#        self.conv  = nn.ModuleList([])
-#        self.bn  = nn.ModuleList([])
-#        self.ln  = nn.ModuleList([])
-#        self.act = nn.ModuleList([])
-#        self.drop = nn.ModuleList([])
-#
-#        if self.ccnn_use_laynorm_inp:
-#            self.ln0=LayerNorm(self.input_dim)
-
-#        if self.ccnn_use_batchnorm_inp:
-#            self.bn0=nn.BatchNorm1d([self.input_dim],momentum=0.05)
 
 
-#        current_input=self.input_dim
-#
-#        for i in range(self.ccnn_N_lay):
-#
-#            N_filt=int(self.ccnn_N_filt[i])
-#            len_filt=int(self.ccnn_len_filt[i])
-#
-#            # dropout
-#            self.drop.append(nn.Dropout(p=self.ccnn_drop[i]))
-#
-#            # activation
-#            self.act.append(act_fun(self.ccnn_act[i]))
-#
-#            # layer norm initialization
-#            #print(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i]))
-#            #self.ln.append(CLN(int((current_input-self.gabor_len_filt[i]+1)/self.gabor_max_pool_len[i])*2, dim=-1))
-#            self.ln.append(CLN(current_input // 2, dim=1))
-#            self.bn.append(CBN(N_filt,int((current_input-self.ccnn_len_filt[i]+1)/self.ccnn_max_pool_len[i]),momentum=0.05))
-#
-#
-#            self.conv.append(ComplexConv(self.ccnn_N_filt[i-1], self.ccnn_N_filt[i], self.ccnn_len_filt[i], operation='convolution1d'))
-#
-#            current_input=int((current_input-self.ccnn_len_filt[i]+1)/self.ccnn_max_pool_len[i])
-#
-#        self.out_dim=current_input*N_filt
+class GaborRealConv(nn.Module):
+
+    @staticmethod
+    def to_mel(hz):
+        return 2595 * np.log10(1 + hz / 700)
+
+    @staticmethod
+    def to_hz(mel):
+        return 700 * (10 ** (mel / 2595) - 1)
+
+    def __init__(self, in_channels, out_channels, kernel_size,
+                 stride=1, padding=0, dilation=1, bias=False, groups=1,
+                 sample_rate=16000, min_low_hz=50, min_band_hz=50):
+
+        super(GaborRealConv,self).__init__()
+
+        if in_channels != 1:
+            msg = "GaborRealConv only support one input channel (here, in_channels = {%i})" % (in_channels)
+            raise ValueError(msg)
+
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+
+        # Forcing the filters to be odd (i.e, perfectly symmetrics)
+        if kernel_size%2==0:
+            self.kernel_size=self.kernel_size+1
+
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
+
+        if bias:
+            raise ValueError('GaborRealConv does not support bias.')
+        if groups > 1:
+            raise ValueError('GaborRealConv does not support groups.')
+
+        self.sample_rate = sample_rate
+        self.min_low_hz = min_low_hz
+        self.min_band_hz = min_band_hz
+
+        # initialize filterbanks such that they are equally spaced in Mel scale
+        low_hz = 30
+        high_hz = self.sample_rate / 2 - (self.min_low_hz + self.min_band_hz)
+
+        mel = np.linspace(self.to_mel(low_hz),
+                          self.to_mel(high_hz),
+                          self.out_channels + 1)
+        hz = self.to_hz(mel) / self.sample_rate
+
+            # filter lower frequency (out_channels, 1)
+        self.low_hz_ = nn.Parameter(torch.Tensor(hz[:-1]).view(-1, 1))
+
+        # filter frequency band (out_channels, 1)
+        self.band_hz_ = nn.Parameter(torch.Tensor(np.diff(hz)).view(-1, 1))
+
+        #self.a_=nn.Parameter(torch.Tensor(np.random.random(self.out_channels)).view(-1, 1))
+
+        # Hamming window
+        #self.window_ = torch.hamming_window(self.kernel_size)
+        n_lin=torch.linspace(0, self.kernel_size, steps=self.kernel_size)
+        self.window_=0.54-0.46*torch.cos(2*math.pi*n_lin/self.kernel_size);
+
+        # (kernel_size, 1)
+        n = (self.kernel_size - 1) / 2
+        self.n_ = torch.arange(-n, n+1).view(1, -1) / self.sample_rate
+
+    def gaussian_window(self, x, sigma):
+
+        w = (1/(math.sqrt(2*math.pi)*sigma) * torch.exp(-x**2/(2*sigma**2)))
+
+        return w
 
 
-#    def forward(self, x):
-#
-#        batch=x.shape[0]
-#        seq_len=x.shape[1]
-#
-#        if bool(self.ccnn_use_laynorm_inp):
-#            x=self.ln0(x)
-#
-#        if bool(self.ccnn_use_batchnorm_inp):
-#            x=self.bn0(x)
-#
-#        x=x.view(batch,1,seq_len)
-#        x_im =torch.zeros([batch,1,seq_len],dtype=torch.float32,device=x.device)
-#        print(x_im.shape)
-#        x = torch.cat((x,x_im),dim=1)
+    def forward(self, waveforms):
+        """
+        Parameters
+        ----------
+        waveforms : `torch.Tensor` (batch_size, 1, n_samples)
+            Batch of waveforms.
+        Returns
+        -------
+        features : `torch.Tensor` (batch_size, out_channels, n_samples_out)
+            Batch of gabor filters activations.
+        """
 
-#        for i in range(self.ccnn_N_lay):
-#
-#            if self.ccnn_use_laynorm[i]:
-#                x = self.drop[i](self.act[i](self.ln[i](F.max_pool1d(self.conv[i](x), self.ccnn_max_pool_len[i]))))
-#
-#            if self.ccnn_use_batchnorm[i]:
-#                x = self.drop[i](self.act[i](self.bn[i](F.max_pool1d(self.conv[i](x), self.ccnn_max_pool_len[i]))))
-#
-#            if self.ccnn_use_batchnorm[i]==False and self.ccnn_use_laynorm[i]==False:
-#                x = self.drop[i](self.act[i](F.max_pool1d(self.conv[i](x), self.ccnn_max_pool_len[i])))
-#
-#
-#        x = x.view(batch,-1)
-#
-#        return x
+        self.n_ = self.n_.to(waveforms.device)
+
+        self.window_ = self.window_.to(waveforms.device)
+
+        low = self.min_low_hz / self.sample_rate + torch.abs(self.low_hz_)
+        high = low + self.min_band_hz /self.sample_rate + torch.abs(self.band_hz_)
+
+        sigma = math.sqrt(3*math.log(10)/10)/(math.pi*(high-low))
+
+        f0 = (high+low)/2
+        f_times_t = torch.matmul(f0, self.n_)
+
+        ge = torch.cos(2*math.pi*f_times_t*self.sample_rate)
+        ge = torch.mul(self.gaussian_window(self.n_, sigma), ge)
+
+        #ge = self.a_*ge
+        max_, _ = torch.max(ge, dim=1, keepdim=True)
+        ge = ge / max_
+
+        filters_ge = (ge * self.window_).view(self.out_channels, 1, self.kernel_size)   #IS THE WINDOWING REALLY NECESSARY ? GABOR IMPULSE RESPONSE IS ALREADY MULTIPLIED BY A GAUSSIAN WINDOW
+
+        self.filters = filters_ge
+
+        return F.conv1d(waveforms, self.filters, stride=self.stride,
+                        padding=self.padding, dilation=self.dilation,
+                         bias=None, groups=1)
+
 
 
 

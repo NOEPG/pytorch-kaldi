@@ -5,6 +5,16 @@ import numpy               as     np
 from   numpy.random        import RandomState
 
 
+def complex_max_pool1d(input, pool_len):
+    real = input[:,0:int(input.shape[1]/2)]
+    imag = input[:,int(input.shape[1]/2):]
+    mag2 = torch.pow(real,2)+torch.pow(imag,2)
+    indices = F.max_pool1d(mag2,pool_len, return_indices=True)[1]
+    real_pooled = real.gather(2,indices)
+    imag_pooled = imag.gather(2,indices)
+    return  torch.cat([real_pooled,imag_pooled],dim=1)
+
+
 def check_input(input):
     if input.dim() not in {2, 3}:
         raise Exception(
