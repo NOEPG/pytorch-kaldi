@@ -1,3 +1,16 @@
+This is a fork from [mravanelli/pytorch-kaldi](https://github.com/mravanelli/pytorch-kaldi) where I have added the models proposed in the work *"Complex Gabor Convolutional Neural Network on raw speech", [arXiv](https://arxiv.org/abs/2002.04569)*.
+
+In order to try it :
+1. Follows the steps described in the “TIMIT tutorial”.
+2. Save the raw waveform into the Kaldi ark format. To do it, you can use the save_raw_fea.py utility in our repository. The script saves the input signals into a binary Kaldi archive, keeping the alignments with the pre-computed labels. You have to run it for all the data chunks (e.g., train, dev, test). It can also specify the length of the speech chunk (*sig_wlen=200 # ms*) composing each frame.
+3. Edit the GaborNet config file in *cfg/*, change the paths, and run:
+
+```    
+python ./run_exp.py cfg/TIMIT_baselines/TIMIT_GaborNet_raw_pg.cfg
+```
+
+
+
 # The PyTorch-Kaldi Speech Recognition Toolkit
 <img src="pytorch-kaldi_logo.png" width="220" img align="left">
 PyTorch-Kaldi is an open-source repository for developing state-of-the-art DNN/HMM speech recognition systems. The DNN part is managed by PyTorch, while feature extraction, label computation, and decoding are performed with the Kaldi toolkit.
@@ -23,13 +36,13 @@ To improve transparency and replicability of speech recognition results, we give
 
 [See a short introductory video on the PyTorch-Kaldi Toolkit](https://www.youtube.com/watch?v=VDQaf0SS4K0&t=2s)
 
-## Next Version: SpeechBrain 
-We are happy to announce the SpeechBrain project (https://speechbrain.github.io/), that aims to develop an **open-source all-in-one** toolkit based on PyTorch. The SpeechBrain project will significantly extend the functionality of the current PyTorch-Kaldi toolkit. 
+## Next Version: SpeechBrain
+We are happy to announce the SpeechBrain project (https://speechbrain.github.io/), that aims to develop an **open-source all-in-one** toolkit based on PyTorch. The SpeechBrain project will significantly extend the functionality of the current PyTorch-Kaldi toolkit.
 
 The goal is to develop a *single*, *flexible*, and *user-friendly* toolkit that can be used to easily develop state-of-the-art speech systems for speech recognition (both end-to-end and HMM-DNN), speaker recognition, speech separation, multi-microphone signal processing (e.g, beamforming), self-supervised learning, and many others.
 
-The project will be lead by Mila and is sponsored by Samsung, Nvidia, Dolby. 
-SpeechBrain will also benefit from the collaboration and expertise of other companies such as Facebook/PyTorch, IBMResearch, FluentAI. 
+The project will be lead by Mila and is sponsored by Samsung, Nvidia, Dolby.
+SpeechBrain will also benefit from the collaboration and expertise of other companies such as Facebook/PyTorch, IBMResearch, FluentAI.
 
 We are actively looking for collaborators. Feel free to contact us at speechbrainproject@gmail.com if you are interested to collaborate.
 
@@ -141,9 +154,9 @@ In the following, we provide a short tutorial of the PyTorch-Kaldi toolkit based
 
 1. Make sure you have the TIMIT dataset. If not, it can be downloaded from the LDC website (https://catalog.ldc.upenn.edu/LDC93S1).
 
-2. Make sure Kaldi and PyTorch installations are fine. Make also sure that your KALDI paths are currently working (you should add the Kaldi paths into the .bashrc as reported in the section "Prerequisites"). For instance, type "copy-feats" and "hmm-info" and make sure no errors appear. 
+2. Make sure Kaldi and PyTorch installations are fine. Make also sure that your KALDI paths are currently working (you should add the Kaldi paths into the .bashrc as reported in the section "Prerequisites"). For instance, type "copy-feats" and "hmm-info" and make sure no errors appear.
 
-3. Run the Kaldi s5 baseline of TIMIT. This step is necessary to compute features and labels later used to train the PyTorch neural network. We recommend running the full timit s5 recipe (including the DNN training): 
+3. Run the Kaldi s5 baseline of TIMIT. This step is necessary to compute features and labels later used to train the PyTorch neural network. We recommend running the full timit s5 recipe (including the DNN training):
 
 ```
 cd kaldi/egs/timit/s5
@@ -169,7 +182,7 @@ steps/nnet/align.sh --nj 4 data-fmllr-tri3/dev data/lang exp/dnn4_pretrain-dbn_d
 steps/nnet/align.sh --nj 4 data-fmllr-tri3/test data/lang exp/dnn4_pretrain-dbn_dnn exp/dnn4_pretrain-dbn_dnn_ali_test
 ```
 
-5. We start this tutorial with a very simple MLP network trained on mfcc features.  Before launching the experiment, take a look at the configuration file  *cfg/TIMIT_baselines/TIMIT_MLP_mfcc_basic.cfg*. See the [Description of the configuration files](#description-of-the-configuration-files) for a detailed description of all its fields. 
+5. We start this tutorial with a very simple MLP network trained on mfcc features.  Before launching the experiment, take a look at the configuration file  *cfg/TIMIT_baselines/TIMIT_MLP_mfcc_basic.cfg*. See the [Description of the configuration files](#description-of-the-configuration-files) for a detailed description of all its fields.
 
 6. Change the config file according to your paths. In particular:
 - Set “fea_lst” with the path of your mfcc training list (that should be in $KALDI_ROOT/egs/timit/s5/data/train/feats.scp)
@@ -241,19 +254,19 @@ python run_exp.py $cfg_file
 ```
 There are some examples with recurrent (TIMIT_RNN*,TIMIT_LSTM*,TIMIT_GRU*,TIMIT_LiGRU*) and CNN architectures (TIMIT_CNN*). We also propose a more advanced model (TIMIT_DNN_liGRU_DNN_mfcc+fbank+fmllr.cfg) where we used a combination of feed-forward and recurrent neural networks fed by a concatenation of mfcc, fbank, and fmllr features. Note that the latter configuration files correspond to the best architecture described in the reference paper. As you might see from the above-mentioned configuration files, we improve the ASR performance by including some tricks such as the monophone regularization (i.e., we jointly estimate both context-dependent and context-independent targets). The following table reports the results obtained by running the latter systems (average PER\%):
 
-| Model  | mfcc | fbank | fMLLR | 
-| ------ | -----| ------| ------| 
+| Model  | mfcc | fbank | fMLLR |
+| ------ | -----| ------| ------|
 |  Kaldi DNN Baseline | -----| ------| 18.5 |
-|  MLP  | 18.2 | 18.7 | 16.7 | 
-|  RNN  | 17.7 | 17.2 | 15.9 | 
+|  MLP  | 18.2 | 18.7 | 16.7 |
+|  RNN  | 17.7 | 17.2 | 15.9 |
 |  SRU  | -----| 16.6 | -----|
-|LSTM| 15.1  | 14.3  |14.5  | 
-|GRU| 16.0 | 15.2|  14.9 | 
-|li-GRU| **15.5**  | **14.9**|  **14.2** | 
+|LSTM| 15.1  | 14.3  |14.5  |
+|GRU| 16.0 | 15.2|  14.9 |
+|li-GRU| **15.5**  | **14.9**|  **14.2** |
 
-Results show that, as expected, fMLLR features outperform MFCCs and FBANKs coefficients, thanks to the speaker adaptation process. Recurrent models significantly outperform the standard MLP one, especially when using LSTM, GRU, and Li-GRU architecture, that effectively address gradient vanishing through multiplicative gates. The best result *PER=$14.2$\%* is obtained with the [Li-GRU model](https://arxiv.org/pdf/1803.10225.pdf) [2,3], that is based on a single gate and thus saves 33% of the computations over a standard GRU. 
+Results show that, as expected, fMLLR features outperform MFCCs and FBANKs coefficients, thanks to the speaker adaptation process. Recurrent models significantly outperform the standard MLP one, especially when using LSTM, GRU, and Li-GRU architecture, that effectively address gradient vanishing through multiplicative gates. The best result *PER=$14.2$\%* is obtained with the [Li-GRU model](https://arxiv.org/pdf/1803.10225.pdf) [2,3], that is based on a single gate and thus saves 33% of the computations over a standard GRU.
 
-The best results are actually obtained with a more complex architecture that combines MFCC, FBANK, and fMLLR features (see *cfg/TIMI_baselines/TIMIT_mfcc_fbank_fmllr_liGRU_best.cfg*). To the best of our knowledge, the **PER=13.8\%** achieved by the latter system yields the best-published performance on the TIMIT test-set. 
+The best results are actually obtained with a more complex architecture that combines MFCC, FBANK, and fMLLR features (see *cfg/TIMI_baselines/TIMIT_mfcc_fbank_fmllr_liGRU_best.cfg*). To the best of our knowledge, the **PER=13.8\%** achieved by the latter system yields the best-published performance on the TIMIT test-set.
 
 The Simple Recurrent Units (SRU) is an efficient and highly parallelizable recurrent model. Its performance on ASR is worse than standard LSTM, GRU, and Li-GRU models, but it is significantly faster. SRU is implemented [here](https://github.com/taolei87/sru) and described in the following paper:
 
@@ -272,7 +285,7 @@ The steps to run PyTorch-Kaldi on the Librispeech dataset are similar to that re
 ```
 mkdir exp/tri4b/decode_tgsmall_train_clean_100 && cp exp/tri4b/trans.* exp/tri4b/decode_tgsmall_train_clean_100/
 ```
-3. Compute the fmllr features by running the following script. 
+3. Compute the fmllr features by running the following script.
 
 ```
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work on your system.
@@ -305,11 +318,11 @@ steps/align_fmllr.sh --nj 10 data/test_clean data/lang exp/tri4b exp/tri4b_ali_t
 
 If you would like to use a recurrent model you can use *libri_RNN_fmllr.cfg*, *libri_LSTM_fmllr.cfg*, *libri_GRU_fmllr.cfg*, or *libri_liGRU_fmllr.cfg*. The training of recurrent models might take some days (depending on the adopted GPU).  The performance obtained with the tgsmall graph are reported in the following table:
 
-| Model  | WER% | 
-| ------ | -----| 
+| Model  | WER% |
+| ------ | -----|
 |  MLP  |  9.6 |
 |LSTM   |  8.6  |
-|GRU     | 8.6 | 
+|GRU     | 8.6 |
 |li-GRU| 8.6 |
 
 These results are obtained without adding a lattice rescoring (i.e., using only the *tgsmall* graph). You can improve the performance by adding lattice rescoring in this way (run it from the *kaldi_decoding_script* folder of Pytorch-Kaldi):
@@ -324,10 +337,10 @@ steps/lmrescore_const_arpa.sh  $data_dir/lang_test_{tgsmall,fglarge} \
 The final results obtaineed using rescoring (*fglarge*) are reported in the following table:
 
 | Model  | WER% |  
-| ------ | -----| 
+| ------ | -----|
 |  MLP  |  6.5 |
 |LSTM   |  6.4  |
-|GRU     | 6.3 | 
+|GRU     | 6.3 |
 |li-GRU| **6.2**  |
 
 
@@ -347,7 +360,7 @@ The results are summarized into the *res.res* files, while errors and warnings a
 
 
 ## Description of the configuration files:
-There are two types of config files (global and chunk-specific cfg files). They are both in *INI* format and are read, processed, and modified with the *configparser* library of python. 
+There are two types of config files (global and chunk-specific cfg files). They are both in *INI* format and are read, processed, and modified with the *configparser* library of python.
 The global file contains several sections, that specify all the main steps of a speech recognition experiments (training, validation, forward, and decoding).
 The structure of the config file is described in a prototype file (see for instance *proto/global.proto*) that not only lists all the required sections and fields but also specifies the type of each possible field. For instance, *N_ep=int(1,inf)* means that the fields *N_ep* (i.e, number of training epochs) must be an integer ranging from 1 to inf. Similarly, *lr=float(0,inf)* means that the lr field (i.e., the learning rate) must be a float ranging from 0 to inf. Any attempt to write a config file not compliant with these specifications will raise an error.
 
@@ -362,7 +375,7 @@ The current version of the config file first specifies the paths of the global a
 
 ```
 [exp]
-cmd = 
+cmd =
 run_nn_script = run_nn
 out_folder = exp/TIMIT_MLP_basic5
 seed = 1234
@@ -381,14 +394,14 @@ fea = fea_name=mfcc
     fea_opts=apply-cmvn --utt2spk=ark:quick_test/data/train/utt2spk  ark:quick_test/mfcc/train_cmvn_speaker.ark ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |
     cw_left=5
     cw_right=5
-    
+
 lab = lab_name=lab_cd
     lab_folder=quick_test/dnn4_pretrain-dbn_dnn_ali
     lab_opts=ali-to-pdf
     lab_count_file=auto
     lab_data_folder=quick_test/data/train/
     lab_graph=quick_test/graph
-    
+
 n_chunks = 5
 
 [dataset2]
@@ -398,7 +411,7 @@ fea = fea_name=mfcc
     fea_opts=apply-cmvn --utt2spk=ark:quick_test/data/dev/utt2spk  ark:quick_test/mfcc/dev_cmvn_speaker.ark ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |
     cw_left=5
     cw_right=5
-    
+
 lab = lab_name=lab_cd
     lab_folder=quick_test/dnn4_pretrain-dbn_dnn_ali_dev
     lab_opts=ali-to-pdf
@@ -414,21 +427,21 @@ fea = fea_name=mfcc
     fea_opts=apply-cmvn --utt2spk=ark:quick_test/data/test/utt2spk  ark:quick_test/mfcc/test_cmvn_speaker.ark ark:- ark:- | add-deltas --delta-order=2 ark:- ark:- |
     cw_left=5
     cw_right=5
-    
+
 lab = lab_name=lab_cd
     lab_folder=quick_test/dnn4_pretrain-dbn_dnn_ali_test
     lab_opts=ali-to-pdf
     lab_count_file=auto
     lab_data_folder=quick_test/data/test/
     lab_graph=quick_test/graph
-    
+
 n_chunks = 1
 ```
 
 The config file contains a number of sections (*[dataset1]*, *[dataset2]*, *[dataset3]*,...) that describe all the corpora used for the ASR experiment.  The fields on the *[dataset\*]* section describe all the features and labels considered in the experiment.
 The features, for instance, are specified in the field *fea:*, where *fea_name* contains the name given to the feature, *fea_lst* is the list of features (in the scp Kaldi format), *fea_opts* allows users to specify how to process the features (e.g., doing CMVN or adding the derivatives), while *cw_left* and *cw_right* set the characteristics of the context window (i.e., number of left and right frames to append). Note that the current version of the PyTorch-Kaldi toolkit supports the definition of multiple features streams. Indeed, as shown in *cfg/TIMIT_baselines/TIMIT_mfcc_fbank_fmllr_liGRU_best.cfg* multiple feature streams (e.g., mfcc, fbank, fmllr) are employed.
 
-Similarly, the *lab* section contains some sub-fields.  For instance, *lab_name* refers to the name given to the label,  while *lab_folder* contains the folder where the alignments generated by the Kaldi recipe are stored.  *lab_opts* allows the user to specify some options on the considered alignments. For example  *lab_opts="ali-to-pdf"* extracts standard context-dependent phone-state labels, while *lab_opts=ali-to-phones --per-frame=true* can be used to extract monophone targets. *lab_count_file* is used to specify the file that contains the counts of the considered phone states. 
+Similarly, the *lab* section contains some sub-fields.  For instance, *lab_name* refers to the name given to the label,  while *lab_folder* contains the folder where the alignments generated by the Kaldi recipe are stored.  *lab_opts* allows the user to specify some options on the considered alignments. For example  *lab_opts="ali-to-pdf"* extracts standard context-dependent phone-state labels, while *lab_opts=ali-to-phones --per-frame=true* can be used to extract monophone targets. *lab_count_file* is used to specify the file that contains the counts of the considered phone states.
 These counts are important in the forward phase, where the posterior probabilities computed by the neural network are divided by their priors. PyTorch-Kaldi allows users to both specify an external count file or to automatically retrieve it (using *lab_count_file=auto*). Users can also specify *lab_count_file=none* if the count file is not strictly needed, e.g., when the labels correspond to an output not used to generate the posterior probabilities used in the forward phase (see for instance the monophone targets in *cfg/TIMIT_baselines/TIMIT_MLP_mfcc.cfg*). *lab_data_folder*, instead, corresponds to the data folder created during the Kaldi data preparation. It contains several files, including the text file eventually used for the computation of the final WER. The last sub-field *lab_graph* is the path of the Kaldi graph used to generate the labels.  
 
 The full dataset is usually large and cannot fit the GPU/RAM memory. It should thus be split into several chunks.  PyTorch-Kaldi automatically splits the dataset into the number of chunks specified in *N_chunks*. The number of chunks might depend on the specific dataset. In general, we suggest processing speech chunks of about 1 or 2 hours (depending on the available memory).
@@ -440,7 +453,7 @@ valid_with = TIMIT_dev
 forward_with = TIMIT_test
 ```
 
-This section tells how the data listed into the sections *[datasets\*]* are used within the *run_exp.py* script. 
+This section tells how the data listed into the sections *[datasets\*]* are used within the *run_exp.py* script.
 The first line means that we perform training with the data called *TIMIT_tr*. Note that this dataset name must appear in one of the dataset sections, otherwise the config parser will raise an error. Similarly,  the second and third lines specify the data used for validation and forward phases, respectively.
 
 ```
@@ -570,7 +583,7 @@ scoring_opts = "--min-lmwt 1 --max-lmwt 10"
 norm_vars = False
 ```    
 
-The decoding section reports parameters about decoding, i.e. the steps that allows one to pass from a sequence of the context-dependent probabilities provided by the DNN into a sequence of words. The field *decoding_script_folder* specifies the folder where the decoding script is stored. The *decoding script* field is the script used for decoding (e.g., *decode_dnn.sh*) that should be in the *decoding_script_folder* specified before.  The field *decoding_proto* reports all the parameters needed for the considered decoding script. 
+The decoding section reports parameters about decoding, i.e. the steps that allows one to pass from a sequence of the context-dependent probabilities provided by the DNN into a sequence of words. The field *decoding_script_folder* specifies the folder where the decoding script is stored. The *decoding script* field is the script used for decoding (e.g., *decode_dnn.sh*) that should be in the *decoding_script_folder* specified before.  The field *decoding_proto* reports all the parameters needed for the considered decoding script.
 
 To make the code more flexible, the config parameters can also be specified within the command line. For example, you can run:
 ```    
@@ -587,7 +600,7 @@ For instance, to add a user-defined model, a new proto file (e.g., *user-model.p
 ## [FAQs]
 ## How can I plug-in my model
 The toolkit is designed to allow users to easily plug-in their own acoustic models. To add a customized neural model do the following steps:
-1. Go into the proto folder and create a new proto file (e.g., *proto/myDNN.proto*). The proto file is used to specify the list of the hyperparameters of your model that will be later set into the configuration file. To have an idea about the information to add to your proto file, you can take a look into the *MLP.proto* file: 
+1. Go into the proto folder and create a new proto file (e.g., *proto/myDNN.proto*). The proto file is used to specify the list of the hyperparameters of your model that will be later set into the configuration file. To have an idea about the information to add to your proto file, you can take a look into the *MLP.proto* file:
 
 ```
 [proto]
@@ -599,20 +612,20 @@ dnn_use_batchnorm=bool_list
 dnn_use_laynorm=bool_list
 dnn_act=str_list
 ```
-2. The parameter *dnn_lay* must be a list of string, *dnn_drop* (i.e., the dropout factors for each layer) is a list of float ranging from 0.0 and 1.0, *dnn_use_laynorm_inp* and *dnn_use_batchnorm_inp* are booleans that enable or disable batch or layer normalization of the input.  *dnn_use_batchnorm* and *dnn_use_laynorm* are a list of boolean that decide layer by layer if batch/layer normalization has to be used. 
+2. The parameter *dnn_lay* must be a list of string, *dnn_drop* (i.e., the dropout factors for each layer) is a list of float ranging from 0.0 and 1.0, *dnn_use_laynorm_inp* and *dnn_use_batchnorm_inp* are booleans that enable or disable batch or layer normalization of the input.  *dnn_use_batchnorm* and *dnn_use_laynorm* are a list of boolean that decide layer by layer if batch/layer normalization has to be used.
 The parameter *dnn_act* is again a list of string that sets the activation function of each layer. Since every model is based on its own set of hyperparameters,  different models have a different prototype file. For instance, you can take a look into *GRU.proto* and see that the hyperparameter list is different from that of a standard MLP.  Similarly to the previous examples, you should add here your list of hyperparameters and save the file.
 
 3. Write a PyTorch class implementing your model.
- Open the library *neural_networks.py* and look at some of the models already implemented. For simplicity, you can start taking a look into the class MLP.  The classes have two mandatory methods: **init** and **forward**. The first one is used to initialize the architecture, the second specifies the list of computations to do. 
+ Open the library *neural_networks.py* and look at some of the models already implemented. For simplicity, you can start taking a look into the class MLP.  The classes have two mandatory methods: **init** and **forward**. The first one is used to initialize the architecture, the second specifies the list of computations to do.
 The method *init* takes in input two variables that are automatically computed within the *run_nn* function.  **inp_dim** is simply the dimensionality of the neural network input, while **options** is a dictionary containing all the parameters specified into the section *architecture* of the configuration file.  
-For instance, you can access to the DNN activations of the various layers  in this way: 
-```options['dnn_lay'].split(',')```. 
-As you might see from the MLP class, the initialization method defines and initializes all the parameters of the neural network. The forward method takes in input a tensor **x** (i.e., the input data) and outputs another vector containing x. 
+For instance, you can access to the DNN activations of the various layers  in this way:
+```options['dnn_lay'].split(',')```.
+As you might see from the MLP class, the initialization method defines and initializes all the parameters of the neural network. The forward method takes in input a tensor **x** (i.e., the input data) and outputs another vector containing x.
 If your model is a sequence model (i.e., if there is at least one architecture with arch_seq_model=true in the cfg file), x is a tensor with (time_steps, batches, N_in), otherwise is a (batches, N_in) matrix. The class **forward** defines the list of computations to transform the input tensor into a corresponding output tensor. The output must have the sequential format (time_steps, batches, N_out) for recurrent models and the non-sequential format (batches, N_out) for feed-forward models.
 Similarly to the already-implemented models the user should write a new class (e.g., myDNN) that implements the customized model:
 ```
 class myDNN(nn.Module):
-    
+
     def __init__(self, options,inp_dim):
         super(myDNN, self).__init__()
              // initialize the parameters
@@ -658,12 +671,12 @@ opt_nesterov=False
 
 5. Save the configuration file into the cfg folder (e.g, *cfg/myDNN_exp.cfg*).
 
-6. Run the experiment with: 
+6. Run the experiment with:
 ```
 python run_exp.sh cfg/myDNN_exp.cfg
 ```
 
-7. To debug the model you can first take a look at the standard output. The config file is automatically parsed by the *run_exp.sh* and it raises errors in case of possible problems. You can also take a look into the *log.log* file to see additional information on the possible errors. 
+7. To debug the model you can first take a look at the standard output. The config file is automatically parsed by the *run_exp.sh* and it raises errors in case of possible problems. You can also take a look into the *log.log* file to see additional information on the possible errors.
 
 
 When implementing a new model, an important debug test consists of doing an overfitting experiment (to make sure that the model is able to overfit a tiny dataset). If the model is not able to overfit, it means that there is a major bug to solve.
@@ -691,7 +704,7 @@ PyTorch-Kaldi can be used with any speech dataset. To use your own dataset, the 
 4. Run the config file with ```python run_exp.sh $cfg_file```.
 
 ## How can I plug-in my own features
-The current version of PyTorch-Kaldi supports input features stored with the Kaldi ark format. If the user wants to perform experiments with customized features, the latter must be converted into the ark format. Take a look into the Kaldi-io-for-python git repository (https://github.com/vesis84/kaldi-io-for-python) for a detailed description about converting numpy arrays into ark files. 
+The current version of PyTorch-Kaldi supports input features stored with the Kaldi ark format. If the user wants to perform experiments with customized features, the latter must be converted into the ark format. Take a look into the Kaldi-io-for-python git repository (https://github.com/vesis84/kaldi-io-for-python) for a detailed description about converting numpy arrays into ark files.
 Moreover, you can take a look into our utility called save_raw_fea.py. This script generates Kaldi ark files containing raw features, that are later used to train neural networks fed by the raw waveform directly (see the section about processing audio with SincNet).
 
 ## How can I transcript my own audio files
@@ -719,7 +732,7 @@ train_with = TIMIT_tr
 valid_with = TIMIT_dev
 forward_with = myWavFile
 ```
-The key string for your audio file transcription is *lab_name=none*. The *none* tag asks Pytorch-Kaldi to enter a *production* mode that only does the forward propagation and decoding without any labels. You don't need TIMIT_tr and TIMIT_dev to be on your production server since Pytorch-Kaldi will skip this information to directly go to the forward phase of the dataset given in the *forward_with* field. As you can see, the global *fea* field requires the exact same parameters than standard training or testing dataset, while the *lab* field only requires two parameters. Please, note that *lab_data_folder* is nothing more than the same path as *fea_lst*. Finally, you still need to specify the number of chunks you want to create to process this file (1 hour = 1 chunk).<br /> 
+The key string for your audio file transcription is *lab_name=none*. The *none* tag asks Pytorch-Kaldi to enter a *production* mode that only does the forward propagation and decoding without any labels. You don't need TIMIT_tr and TIMIT_dev to be on your production server since Pytorch-Kaldi will skip this information to directly go to the forward phase of the dataset given in the *forward_with* field. As you can see, the global *fea* field requires the exact same parameters than standard training or testing dataset, while the *lab* field only requires two parameters. Please, note that *lab_data_folder* is nothing more than the same path as *fea_lst*. Finally, you still need to specify the number of chunks you want to create to process this file (1 hour = 1 chunk).<br />
 **WARNINGS** <br />
 In your standard .cfg, you might have used keywords such as *N_out_lab_cd* that can not be used anymore. Indeed, in a production scenario, you don't want to have the training data on your machine. Therefore, all the *variables* that were on your .cfg file must be replaced by their true values. To replace all the *N_out_{mono,lab_cd}* you can take a look at the output of:
 ```
@@ -761,14 +774,14 @@ A similar formalism can be used to perform learning rate scheduling:
 ```
 arch_lr = 0.08*10|0.04*5|0.02*3|0.01*2|0.005*2|0.0025*2
 ```
-In this case, if the user simply sets ```arch_lr = 0.08``` the learning rate is annealed with the *new-bob* procedure used in the previous version of the toolkit. In practice, we start from the specified learning rate and we multiply it by a halving factor every time that the improvement on the validation dataset is smaller than the threshold specified in the field *arch_improvement_threshold*. 
+In this case, if the user simply sets ```arch_lr = 0.08``` the learning rate is annealed with the *new-bob* procedure used in the previous version of the toolkit. In practice, we start from the specified learning rate and we multiply it by a halving factor every time that the improvement on the validation dataset is smaller than the threshold specified in the field *arch_improvement_threshold*.
 
 Also the dropout factor can now be changed during training with the following formalism:
 
 ```
 dnn_drop = 0.15*12|0.20*12,0.15,0.15*10|0.20*14,0.15,0.0
 ```
-With the line before we can set a different dropout rate for different layers and for different epochs. 
+With the line before we can set a different dropout rate for different layers and for different epochs.
 For instance, the first hidden layer will have a dropout rate of 0.15 for the first 12 epochs, and 0.20 for the other 12. The dropout factor of the second layer, instead, will remain constant to 0.15 over all the training.  The same formalism is used for all the layers. Note that "|" indicates a change in the dropout factor within the same layer, while "," indicates a different layer.
 
 You can take a look here into a config file where batch sizes, learning rates, and dropout factors are changed here:
@@ -814,18 +827,18 @@ python ./run_exp.sh cfg/TIMIT_baselines/TIMIT_SincNet_raw.cfg
 
 In the following table, we compare the result of SincNet with other feed-forward neural network:
 
-| Model  | WER(\%) | 
+| Model  | WER(\%) |
 | ------ | -----|
-|  MLP -fbank  | 18.7 | 
-|  MLP -mfcc  | 18.2 | 
-|  CNN -raw  | 18.1 | 
-|SincNet -raw | **17.2**  | 
+|  MLP -fbank  | 18.7 |
+|  MLP -mfcc  | 18.2 |
+|  CNN -raw  | 18.1 |
+|SincNet -raw | **17.2**  |
 
 
 ## Joint training between speech enhancement and ASR
 In this section, we show how to use PyTorch-Kaldi to jointly train a cascade between a speech enhancement and a speech recognition neural networks. The speech enhancement has the goal of improving the quality of the speech signal by minimizing the MSE between clean and noisy features. The enhanced features then feed another neural network that predicts context-dependent phone states.
 
-In the following, we report a toy-task example based on a reverberated version of TIMIT, that is only intended to show how users should set the config file to train such a combination of neural networks. 
+In the following, we report a toy-task example based on a reverberated version of TIMIT, that is only intended to show how users should set the config file to train such a combination of neural networks.
  Even though some implementation details (and the adopted datasets) are different, this tutorial is inspired by this paper:
 
 - *M. Ravanelli, P. Brakel, M. Omologo, Y. Bengio, "Batch-normalized joint training for DNN-based distant speech recognition", in Proceedings of STL 2016 [arXiv](https://arxiv.org/abs/1703.08471)*
@@ -853,7 +866,7 @@ Note that we use 40 FBANKS here, while Kaldi uses by default 23 FBANKs. To compu
 
 5- Compute the FBANK features for the TIMIT_rev dataset. To do it, you can copy the scripts in *$KALDI_ROOT/egs/TIMIT/ into $KALDI_ROOT/egs/TIMIT_rev/*. Please, copy also the data folder. Note that the audio files in the TIMIT_rev folders are saved with the standard *WAV* format, while TIMIT is released with the *SPHERE* format. To bypass this issue, open the files *data/train/wav.scp*, *data/dev/wav.scp*, *data/test/wav.scp* and delete the part about *SPHERE* reading (e.g., */home/mirco/kaldi-trunk/tools/sph2pipe_v2.5/sph2pipe -f wav*). You also have to change the paths from the standard TIMIT to the reverberated one (e.g. replace /TIMIT/ with /TIMIT_rev/). Remind to remove the final pipeline symbol“ |”. Save the changes and run the computation of the fbank features in this way:
 
-``` 
+```
 feadir=fbank
 
 for x in train dev test; do
@@ -863,18 +876,18 @@ done
 ```
 Remember to change the $KALDI_ROOT/egs/TIMIT_rev/conf/fbank.conf file in order to compute 40 features rather than the 23 FBANKS of the default configuration.
 
-6- Once features are computed, open the following config file: 
+6- Once features are computed, open the following config file:
 
 ```
 cfg/TIMIT_baselines/TIMIT_rev/TIMIT_joint_training_liGRU_fbank.cfg
-``` 
+```
 
-Remember to change the paths according to where data are stored in your machine. As you can see, we consider two types of features. The *fbank_rev* features are computed from the TIMIT_rev dataset, while the *fbank_clean* features are derived from the standard TIMIT dataset and are used as targets for the speech enhancement neural network. 
-As you can see in the *[model]* section of the config file, we have the cascade between networks doing speech enhancement and speech recognition. The speech recognition architecture jointly estimates both context-dependent and monophone targets (thus using the so-called monophone regularization). 
+Remember to change the paths according to where data are stored in your machine. As you can see, we consider two types of features. The *fbank_rev* features are computed from the TIMIT_rev dataset, while the *fbank_clean* features are derived from the standard TIMIT dataset and are used as targets for the speech enhancement neural network.
+As you can see in the *[model]* section of the config file, we have the cascade between networks doing speech enhancement and speech recognition. The speech recognition architecture jointly estimates both context-dependent and monophone targets (thus using the so-called monophone regularization).
 To run an experiment type the following command:
-``` 
+```
 python run_exp.py  cfg/TIMIT_baselines/TIMIT_rev/TIMIT_joint_training_liGRU_fbank.cfg
-``` 
+```
 
 7- Results
 With this configuration file, you should obtain a **Phone Error Rate (PER)=28.1%**. Note that some oscillations around this performance are more than natural and are due to different initialization of the neural parameters.
@@ -898,44 +911,44 @@ Let’s start now with the practical tutorial.
 2- [Go this external reposotory](https://github.com/SHINE-FBK/DIRHA_English_wsj). As reported in this repository, you have to generate the contaminated WSJ dataset with the provided MATLAB script. Then, you can run the proposed KALDI baseline to have features and labels ready for our pytorch-kaldi toolkit.
 
 3- Open the following configuration file:
-``` 
+```
 cfg/DIRHA_baselines/DIRHA_liGRU_fmllr.cfg
-``` 
+```
 The latter configuration file implements a simple RNN model based on a Light Gated Recurrent Unit (Li-GRU). We used fMLLR as input features. Change the paths and run the following command:
 
-``` 
+```
 python run_exp.py cfg/DIRHA_baselines/DIRHA_liGRU_fmllr.cfg
-``` 
+```
 
 4- Results:
-The aforementioned system should provide  **Word Error Rate (WER%)=23.2%**. 
-You can find the results obtained by us [here](https://bitbucket.org/mravanelli/pytorch-kaldi-dirha-exp/). 
+The aforementioned system should provide  **Word Error Rate (WER%)=23.2%**.
+You can find the results obtained by us [here](https://bitbucket.org/mravanelli/pytorch-kaldi-dirha-exp/).
 
 Using the other configuration files in the *cfg/DIRHA_baselines* folder you can perform experiments with different setups. With the provided configuration files you can obtain the following results:
 
-| Model  | WER(\%) | 
+| Model  | WER(\%) |
 | ------ | -----|
-|  MLP  | 26.1 | 
-|GRU| 25.3 | 
-|Li-GRU| **23.8**  | 
+|  MLP  | 26.1 |
+|GRU| 25.3 |
+|Li-GRU| **23.8**  |
 
 ## Training an autoencoder
 The current version of the repository is mainly designed for speech recognition experiments. We are actively working a new version, which is much more flexible and can manage input/output different from Kaldi features/labels. Even with the current version, however, it is possible to implement other systems, such as an autoencoder.
 
 An autoencoder is a neural network whose inputs and outputs are the same. The middle layer normally contains a bottleneck that forces our representations to compress the information of the input. In this tutorial, we provide a toy example based on the TIMIT dataset. For instance, see the following configuration file:
-``` 
+```
 cfg/TIMIT_baselines/TIMIT_MLP_fbank_autoencoder.cfg
-``` 
+```
 Our inputs are the standard 40-dimensional fbank coefficients that are gathered using a context windows of 11 frames (i.e., the total dimensionality of our input is 440). A feed-forward neural network (called MLP_encoder) encodes our features into a 100-dimensional representation. The decoder (called MLP_decoder) is fed by the learned representations and tries to reconstruct the output. The system is trained with **Mean Squared Error (MSE)** metric.
-Note that in the [Model] section we added this line “err_final=cost_err(dec_out,lab_cd)” at the end. The current version of the model, in fact, by default needs that at least one label is specified (we will remove this limit in the next version). 
+Note that in the [Model] section we added this line “err_final=cost_err(dec_out,lab_cd)” at the end. The current version of the model, in fact, by default needs that at least one label is specified (we will remove this limit in the next version).
 
 You can train the system running the following command:
-``` 
+```
 python run_exp.py cfg/TIMIT_baselines/TIMIT_MLP_fbank_autoencoder.cfg
-``` 
+```
 The results should look like this:
 
-``` 
+```
 ep=000 tr=['TIMIT_tr'] loss=0.139 err=0.999 valid=TIMIT_dev loss=0.076 err=1.000 lr_architecture1=0.080000 lr_architecture2=0.080000 time(s)=41
 ep=001 tr=['TIMIT_tr'] loss=0.098 err=0.999 valid=TIMIT_dev loss=0.062 err=1.000 lr_architecture1=0.080000 lr_architecture2=0.080000 time(s)=39
 ep=002 tr=['TIMIT_tr'] loss=0.091 err=0.999 valid=TIMIT_dev loss=0.058 err=1.000 lr_architecture1=0.040000 lr_architecture2=0.040000 time(s)=39
@@ -950,9 +963,9 @@ ep=009 tr=['TIMIT_tr'] loss=0.086 err=0.999 valid=TIMIT_dev loss=0.054 err=0.999
 You should only consider the field "loss=". The filed "err=" only contains not useuful information in this case (for the aforementioned reason).
 You can take a look into the generated features typing the following command:
 
-``` 
+```
 copy-feats ark:exp/TIMIT_MLP_fbank_autoencoder/exp_files/forward_TIMIT_test_ep009_ck00_enc_out.ark  ark,t:- | more
-``` 
+```
 
 ## References
 [1] M. Ravanelli, T. Parcollet, Y. Bengio, "The PyTorch-Kaldi Speech Recognition Toolkit", [ArxIv](https://arxiv.org/abs/1811.07453)
@@ -966,5 +979,3 @@ copy-feats ark:exp/TIMIT_MLP_fbank_autoencoder/exp_files/forward_TIMIT_test_ep00
 [5] T. Parcollet, M. Ravanelli, M. Morchid, G. Linarès, C. Trabelsi, R. De Mori, Y. Bengio, "Quaternion Recurrent Neural Networks", in Proceedings of ICLR 2019 [ArXiv](https://arxiv.org/abs/1806.04418)
 
 [6] T. Parcollet, M. Morchid, G. Linarès, R. De Mori, "Bidirectional Quaternion Long-Short Term Memory Recurrent Neural Networks for Speech Recognition", in Proceedings of ICASSP 2019 [ArXiv](https://arxiv.org/abs/1811.02566)
-
-
